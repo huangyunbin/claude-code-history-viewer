@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 左侧边栏 */
+        .sidebar {
+            width: 260px;
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .sidebar-header h1 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #cccccc;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .help-icon {
+            width: 20px;
+            height: 20px;
+            background: #3e3e42;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: #cccccc;
+        }
+
+        .help-icon:hover {
+            background: #505050;
+        }
+
+        .upload-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0e639c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .upload-btn:hover {
+            background: #1177bb;
+        }
+
+        .session-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .session-item {
+            padding: 10px 12px;
+            margin-bottom: 4px;
+            background: #2d2d30;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .session-item:hover {
+            background: #37373d;
+        }
+
+        .session-item.active {
+            background: #094771;
+        }
+
+        .session-item .session-id {
+            font-weight: 500;
+            color: #cccccc;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .session-item .session-time {
+            font-size: 11px;
+            color: #858585;
+        }
+
+        /* 右侧内容区 */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .content-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #3e3e42;
+            background: #252526;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .content-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #cccccc;
+        }
+
+        .thinking-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #cccccc;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .thinking-toggle input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #858585;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+        }
+
+        /* 消息样式 */
+        .message {
+            margin-bottom: 24px;
+            padding: 16px;
+            border-radius: 8px;
+            max-width: 100%;
+        }
+
+        .message.user {
+            background: #1e3a5f;
+            margin-left: auto;
+            margin-right: 0;
+            max-width: 80%;
+        }
+
+        .message.assistant {
+            background: #2d2d30;
+            max-width: 100%;
+        }
+
+        .message.tool {
+            background: #2a2d2e;
+            border-left: 3px solid #4ec9b0;
+            max-width: 100%;
+        }
+
+        /* 思考过程样式 */
+        .message.thinking {
+            background: #2a2520;
+            border-left: 3px solid #ce9178;
+            max-width: 100%;
+        }
+
+        .message.thinking .message-role {
+            color: #ce9178;
+        }
+
+        .message-role {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .message-timestamp {
+            font-size: 11px;
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+            opacity: 0.7;
+        }
+
+        .message.user .message-role {
+            color: #4fc3f7;
+        }
+
+        .message.assistant .message-role {
+            color: #ce9178;
+        }
+
+        .message.tool .message-role {
+            color: #4ec9b0;
+        }
+
+        .message-content {
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        /* 折叠状态 */
+        .message-content.collapsed {
+            max-height: 400px;
+            overflow: hidden;
+        }
+
+        .message-content.collapsed::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(transparent, #2d2d30);
+            pointer-events: none;
+        }
+
+        .message.user .message-content.collapsed::after {
+            background: linear-gradient(transparent, #1e3a5f);
+        }
+
+        .message.thinking .message-content.collapsed::after {
+            background: linear-gradient(transparent, #2a2520);
+        }
+
+        .expand-btn {
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: #3e3e42;
+            color: #cccccc;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .expand-btn:hover {
+            background: #505050;
+        }
+
+        .tool-result {
+            margin-top: 12px;
+            padding: 12px;
+            background: #1e1e1e;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #9cdcfe;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4e4e4e;
+        }
+
+        /* 模态弹窗 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #252526;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #cccccc;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #cccccc;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #3e3e42;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .guide-section {
+            margin-bottom: 24px;
+        }
+
+        .guide-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #4fc3f7;
+            margin-bottom: 12px;
+        }
+
+        .guide-section p {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #d4d4d4;
+            margin-bottom: 12px;
+        }
+
+        .guide-steps {
+            background: #1e1e1e;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .guide-step {
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #d4d4d4;
+        }
+
+        .guide-step:last-child {
+            margin-bottom: 0;
+        }
+
+        .guide-step strong {
+            color: #4ec9b0;
+        }
+
+        .code-box {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #9cdcfe;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .code-text {
+            flex: 1;
+            user-select: all;
+        }
+
+        .copy-btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-left: 12px;
+        }
+
+        .copy-btn:hover {
+            background: #1177bb;
+        }
+
+        .copy-btn.copied {
+            background: #16825d;
+        }
+
+        kbd {
+            background: #3e3e42;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: #cccccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 左侧边栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>
+                    <span>Claude Code Viewer</span>
+                    <span class="help-icon" onclick="showHelp()" title="How to use">?</span>
+                </h1>
+                <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">
+                <button class="upload-btn" onclick="document.getElementById('folderInput').click()">
+                    📁 Upload Project Folder
+                </button>
+            </div>
+            <div class="session-list" id="sessionList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📂</div>
+                    <div class="empty-state-text">No sessions loaded</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧内容区 -->
+        <div class="content">
+            <div class="content-header">
+                <h2 id="contentTitle">Welcome</h2>
+                <label class="thinking-toggle">
+                    <input type="checkbox" id="showThinkingCheckbox" onchange="toggleThinking()">
+                    <span>Show Thinking Process</span>
+                </label>
+            </div>
+            <div class="messages-container" id="messagesContainer">
+                <div class="empty-state">
+                    <div class="empty-state-icon">💬</div>
+                    <div class="empty-state-text">Select a session to view conversation</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 帮助弹窗 -->
+    <div class="modal" id="helpModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📖 Usage Guide</h2>
+                <button class="modal-close" onclick="closeHelp()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Mac用户指南 -->
+                <div class="guide-section">
+                    <h3>🍎 Mac Users</h3>
+                    <p>Finder doesn't show hidden folders (like <code>.claude</code>) by default. Here's how to access it:</p>
+
+                    <div class="guide-steps">
+                        <div class="guide-step">
+                            <strong>Method 1:</strong> Use keyboard shortcut
+                            <br>
+                            1. Click "Upload Project Folder" button
+                            <br>
+                            2. Press <kbd>⌘ Cmd</kbd> + <kbd>⇧ Shift</kbd> + <kbd>G</kbd>
+                            <br>
+                            3. Paste the path below and press Enter:
+                        </div>
+                    </div>
+
+                    <div class="code-box">
+                        <div class="code-text" id="macPath">~/.claude/projects/</div>
+                        <button class="copy-btn" onclick="copyPath('macPath', this)">Copy</button>
+                    </div>
+
+                    <div class="guide-steps">
+                        <div class="guide-step">
+                            <strong>Method 2:</strong> Show hidden files
+                            <br>
+                            1. In Finder, press <kbd>⌘ Cmd</kbd> + <kbd>⇧ Shift</kbd> + <kbd>.</kbd> (period)
+                            <br>
+                            2. Hidden folders will become visible
+                            <br>
+                            3. Navigate to your home folder, then find <code>.claude/projects/</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Windows用户指南 -->
+                <div class="guide-section">
+                    <h3>🪟 Windows Users</h3>
+                    <p>Access your Claude Code history folder:</p>
+
+                    <div class="guide-steps">
+                        <div class="guide-step">
+                            <strong>Method 1:</strong> Direct path
+                            <br>
+                            1. Click "Upload Project Folder" button
+                            <br>
+                            2. Press <kbd>Ctrl</kbd> + <kbd>L</kbd> in the dialog
+                            <br>
+                            3. Paste the path below:
+                        </div>
+                    </div>
+
+                    <div class="code-box">
+                        <div class="code-text" id="winPath">%USERPROFILE%\.claude\projects\</div>
+                        <button class="copy-btn" onclick="copyPath('winPath', this)">Copy</button>
+                    </div>
+
+                    <div class="guide-steps">
+                        <div class="guide-step">
+                            <strong>Method 2:</strong> Show hidden folders
+                            <br>
+                            1. Open File Explorer
+                            <br>
+                            2. Click View → Show → Hidden items
+                            <br>
+                            3. Navigate to <code>C:\Users\YourName\.claude\projects\</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 使用说明 -->
+                <div class="guide-section">
+                    <h3>📝 How to Use</h3>
+                    <div class="guide-steps">
+                        <div class="guide-step">
+                            1. Click <strong>"Upload Project Folder"</strong> button
+                        </div>
+                        <div class="guide-step">
+                            2. Navigate to your Claude Code project folder using one of the methods above
+                        </div>
+                        <div class="guide-step">
+                            3. Select the specific project folder (e.g., <code>ai-claude</code>)
+                        </div>
+                        <div class="guide-step">
+                            4. Sessions will appear in the left sidebar
+                        </div>
+                        <div class="guide-step">
+                            5. Click any session to view the conversation history
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 注意事项 -->
+                <div class="guide-section">
+                    <h3>⚠️ Notes</h3>
+                    <p>• This app runs entirely in your browser - your data never leaves your computer</p>
+                    <p>• Only <code>.jsonl</code> files will be loaded (agent files are automatically filtered)</p>
+                    <p>• Large conversations may take a few seconds to load</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局状态
+        const state = {
+            sessions: [],
+            currentSession: null,
+            showThinking: false,  // 是否显示思考过程
+            messageIdCounter: 0   // 消息ID计数器
+        };
+
+        // 文件夹上传处理
+        document.getElementById('folderInput').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            const jsonlFiles = files.filter(f => f.name.endsWith('.jsonl') && !f.name.startsWith('agent-'));
+
+            if (jsonlFiles.length === 0) {
+                alert('No .jsonl files found in the selected folder');
+                return;
+            }
+
+            // 解析所有session文件
+            state.sessions = [];
+            for (const file of jsonlFiles) {
+                try {
+                    const content = await file.text();
+                    const messages = parseJSONL(content);
+
+                    state.sessions.push({
+                        id: file.name.replace('.jsonl', ''),
+                        fileName: file.name,
+                        messages: messages,
+                        firstMessage: messages[0]?.content || 'No messages'
+                    });
+                } catch (error) {
+                    console.error(`Error parsing ${file.name}:`, error);
+                }
+            }
+
+            // 按文件名排序（最新的在前）
+            state.sessions.sort((a, b) => b.fileName.localeCompare(a.fileName));
+
+            // 渲染session列表
+            renderSessionList();
+        });
+
+        // 解析JSONL文件
+        function parseJSONL(content) {
+            const lines = content.trim().split('\n');
+            const messages = [];
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+
+                try {
+                    const data = JSON.parse(line);
+
+                    // Claude Code的JSONL格式：消息在 message 字段中
+                    // 只处理 user 和 assistant 类型的消息
+                    if (data.type === 'user' && data.message) {
+                        messages.push({
+                            ...data.message,
+                            timestamp: data.timestamp,
+                            metadata: {
+                                cwd: data.cwd,
+                                gitBranch: data.gitBranch
+                            }
+                        });
+                    } else if (data.type === 'assistant' && data.message) {
+                        messages.push({
+                            ...data.message,
+                            timestamp: data.timestamp
+                        });
+                    } else if (data.type === 'tool') {
+                        // 工具调用
+                        messages.push({
+                            role: 'tool',
+                            type: 'tool',
+                            name: data.tool?.name || 'Unknown Tool',
+                            content: data.tool?.input || data.content,
+                            result: data.tool?.result,
+                            timestamp: data.timestamp
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error parsing line:', error);
+                }
+            }
+
+            return messages;
+        }
+
+        // 渲染session列表
+        function renderSessionList() {
+            const listEl = document.getElementById('sessionList');
+
+            if (state.sessions.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📂</div>
+                        <div class="empty-state-text">No sessions loaded</div>
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = state.sessions.map((session, index) => {
+                // 只统计用户提问数量
+                const userQuestionCount = session.messages.filter(m => m.role === 'user').length;
+                return `
+                    <div class="session-item" onclick="selectSession(${index})">
+                        <div class="session-id">${session.id}</div>
+                        <div class="session-time">${userQuestionCount} questions</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 选择session
+        function selectSession(index) {
+            state.currentSession = state.sessions[index];
+
+            // 更新active状态
+            document.querySelectorAll('.session-item').forEach((el, i) => {
+                el.classList.toggle('active', i === index);
+            });
+
+            // 渲染消息
+            renderMessages();
+        }
+
+        // 渲染消息
+        function renderMessages() {
+            const container = document.getElementById('messagesContainer');
+            const titleEl = document.getElementById('contentTitle');
+
+            if (!state.currentSession) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💬</div>
+                        <div class="empty-state-text">Select a session to view conversation</div>
+                    </div>
+                `;
+                return;
+            }
+
+            titleEl.textContent = state.currentSession.id;
+
+            // 重置消息ID计数器
+            state.messageIdCounter = 0;
+
+            const messagesHTML = state.currentSession.messages
+                .map(msg => renderMessage(msg))
+                .filter(html => html !== null)  // 过滤空内容
+                .join('');
+
+            container.innerHTML = messagesHTML || '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">No messages to display</div></div>';
+
+            // 滚动到顶部
+            container.scrollTop = 0;
+        }
+
+        // 切换思考过程显示
+        function toggleThinking() {
+            state.showThinking = document.getElementById('showThinkingCheckbox').checked;
+            renderMessages();
+        }
+
+        // 渲染单条消息
+        function renderMessage(msg) {
+            const role = msg.role || 'unknown';
+
+            // 如果是assistant消息，需要分离过程内容和回答内容
+            if (role === 'assistant' && Array.isArray(msg.content)) {
+                const result = [];
+                const textParts = [];  // 最终回答内容
+                const processItems = [];  // 过程内容（thinking + tool_use + tool_result）
+
+                // 分离过程内容和回答内容
+                for (const c of msg.content) {
+                    if (c.type === 'thinking' && c.thinking) {
+                        processItems.push({
+                            type: 'thinking',
+                            content: c.thinking,
+                            label: 'THINKING'
+                        });
+                    } else if (c.type === 'text' && c.text) {
+                        textParts.push(c.text);
+                    } else if (c.type === 'tool_use') {
+                        processItems.push({
+                            type: 'tool_use',
+                            content: `Tool: ${c.name}\n${JSON.stringify(c.input, null, 2)}`,
+                            label: 'TOOL CALL'
+                        });
+                    } else if (c.type === 'tool_result') {
+                        const resultContent = typeof c.content === 'string'
+                            ? c.content
+                            : JSON.stringify(c.content, null, 2);
+                        processItems.push({
+                            type: 'tool_result',
+                            content: `Result:\n${resultContent}`,
+                            label: 'TOOL RESULT'
+                        });
+                    }
+                }
+
+                // 如果开启了显示过程内容，渲染所有过程项
+                if (state.showThinking && processItems.length > 0) {
+                    for (const item of processItems) {
+                        const msgId = state.messageIdCounter++;
+                        const needCollapse = shouldCollapse(item.content);
+                        const collapsedClass = needCollapse ? 'collapsed' : '';
+                        const expandBtn = needCollapse ? `<button class="expand-btn" id="btn-${msgId}" onclick="toggleExpand(${msgId})">展开全部 ▼</button>` : '';
+
+                        result.push(`
+                            <div class="message thinking">
+                                <div class="message-role">
+                                    <span>${item.label}</span>
+                                    <span class="message-timestamp">${formatTimestamp(msg.timestamp)}</span>
+                                </div>
+                                <div class="message-content ${collapsedClass}" id="content-${msgId}">${escapeHtml(item.content)}</div>
+                                ${expandBtn}
+                            </div>
+                        `);
+                    }
+                }
+
+                // 渲染回答内容（text部分）
+                const mainContent = textParts.join('\n\n');
+                if (mainContent && mainContent.trim()) {
+                    const msgId = state.messageIdCounter++;
+                    const needCollapse = shouldCollapse(mainContent);
+                    const collapsedClass = needCollapse ? 'collapsed' : '';
+                    const expandBtn = needCollapse ? `<button class="expand-btn" id="btn-${msgId}" onclick="toggleExpand(${msgId})">展开全部 ▼</button>` : '';
+
+                    result.push(`
+                        <div class="message assistant">
+                            <div class="message-role">
+                                <span>ANSWER</span>
+                                <span class="message-timestamp">${formatTimestamp(msg.timestamp)}</span>
+                            </div>
+                            <div class="message-content ${collapsedClass}" id="content-${msgId}">${escapeHtml(mainContent)}</div>
+                            ${expandBtn}
+                        </div>
+                    `);
+                }
+
+                // 如果没有任何内容，返回null（将被过滤）
+                return result.length > 0 ? result.join('') : null;
+            }
+
+            // 其他消息类型的处理
+            let roleLabel = role.toUpperCase();
+            let messageClass = role;
+
+            if (msg.type === 'tool' || msg.name) {
+                roleLabel = 'TOOL CALL';
+                messageClass = 'tool';
+            }
+
+            // 提取内容
+            let content = '';
+            if (typeof msg.content === 'string') {
+                content = msg.content;
+            } else if (Array.isArray(msg.content)) {
+                const parts = [];
+                for (const c of msg.content) {
+                    if (typeof c === 'string') {
+                        parts.push(c);
+                    } else if (c.type === 'text' && c.text) {
+                        parts.push(c.text);
+                    }
+                }
+                content = parts.join('\n\n');
+            } else if (msg.content) {
+                content = JSON.stringify(msg.content, null, 2);
+            }
+
+            // 如果没有内容，返回null（将被过滤）
+            if (!content || content.trim() === '') {
+                return null;
+            }
+
+            // 判断是否需要折叠
+            const msgId = state.messageIdCounter++;
+            const needCollapse = shouldCollapse(content);
+            const collapsedClass = needCollapse ? 'collapsed' : '';
+            const expandBtn = needCollapse ? `<button class="expand-btn" id="btn-${msgId}" onclick="toggleExpand(${msgId})">展开全部 ▼</button>` : '';
+
+            return `
+                <div class="message ${messageClass}">
+                    <div class="message-role">
+                        <span>${roleLabel}</span>
+                        <span class="message-timestamp">${formatTimestamp(msg.timestamp)}</span>
+                    </div>
+                    <div class="message-content ${collapsedClass}" id="content-${msgId}">${escapeHtml(content)}</div>
+                    ${expandBtn}
+                </div>
+            `;
+        }
+
+        // 格式化时间戳
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '';
+
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            // 今天：显示时:分
+            if (diffDays === 0) {
+                return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            }
+            // 昨天
+            else if (diffDays === 1) {
+                return '昨天 ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            }
+            // 7天内：显示星期
+            else if (diffDays < 7) {
+                const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                return weekdays[date.getDay()] + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            }
+            // 更早：显示完整日期
+            else {
+                return date.toLocaleString('zh-CN', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        }
+
+        // 判断内容是否需要折叠（超过20行）
+        function shouldCollapse(text) {
+            if (!text) return false;
+            const lines = text.split('\n').length;
+            return lines > 20;
+        }
+
+        // 切换展开/折叠
+        function toggleExpand(messageId) {
+            const contentEl = document.getElementById(`content-${messageId}`);
+            const btnEl = document.getElementById(`btn-${messageId}`);
+
+            if (contentEl && btnEl) {
+                const isCollapsed = contentEl.classList.contains('collapsed');
+                if (isCollapsed) {
+                    contentEl.classList.remove('collapsed');
+                    btnEl.textContent = '收起 ▲';
+                } else {
+                    contentEl.classList.add('collapsed');
+                    btnEl.textContent = '展开全部 ▼';
+                }
+            }
+        }
+
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 显示帮助弹窗
+        function showHelp() {
+            document.getElementById('helpModal').classList.add('show');
+        }
+
+        // 关闭帮助弹窗
+        function closeHelp() {
+            document.getElementById('helpModal').classList.remove('show');
+        }
+
+        // 点击弹窗外部关闭
+        document.getElementById('helpModal').addEventListener('click', (e) => {
+            if (e.target.id === 'helpModal') {
+                closeHelp();
+            }
+        });
+
+        // ESC键关闭弹窗
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeHelp();
+            }
+        });
+
+        // 复制路径到剪贴板
+        function copyPath(elementId, button) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                // 更新按钮状态
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+
+        // 首次加载显示帮助提示
+        window.addEventListener('load', () => {
+            // 如果是首次访问，可以自动显示帮助
+            // showHelp();
+        });
+    </script>
+</body>
+</html>
