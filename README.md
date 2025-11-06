@@ -1,12 +1,15 @@
 Claude Code的历史聊天都保存在~/.claude/projects/文件夹下，用的是jsonl格式，这个还不是标准的json，而且文件中有多行，每一行是一个json，非常难看懂。
+
 The chat history of Claude Code is saved in the ~/.claude/projects/ folder in JSONL format. This is not standard JSON; the file contains multiple lines, with each line being a separate JSON object, making it quite difficult to read.
 
 
 Claude Code提供了/export命令，能把历史记录导出成一个txt文本。但是这个txt文本内容查看是非常不友好的，特别是在聊天记录非常多的情况。
+
 Claude Code provides an /exportcommand that can export the history into a text file. However, viewing the content of this text file is not very user-friendly, especially when the chat history is extensive.
 
 
 所以我就做了一个网页，可以方便的查看所有的聊天，这样就非常清晰方便了。
+
 Therefore, I created a webpage that allows users to conveniently view all chats, making everything clear and easy to navigate.
 
 ![效果截图](https://raw.githubusercontent.com/huangyunbin/claude-code-history-viewer/main/view.png)
