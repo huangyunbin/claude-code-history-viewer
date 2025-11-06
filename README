@@ -8,5 +8,6 @@ Claude Code provides an /exportcommand that can export the history into a text f
 
 所以我就做了一个网页，可以方便的查看所有的聊天，这样就非常清晰方便了。
 Therefore, I created a webpage that allows users to conveniently view all chats, making everything clear and easy to navigate.
+![效果截图](view.png)
 
-![界面预览](https://github.com/huangyunbin/claude-code-history-viewer/blob/main/view.png?raw=1)
+
